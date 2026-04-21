@@ -1,0 +1,19 @@
+# YOLOv8 — pinned to a stable minor version to prevent silent API changes
+ultralytics==8.3.40
+
+roboflow==1.1.48          # Dataset download via Roboflow API
+numpy==1.26.4             # Pinned: ultralytics has known issues with numpy 2.x
+opencv-python==4.10.0.84  # Image I/O and visualisation
+Pillow==10.4.0            # PIL-based image utilities
+pandas==2.2.3             # Label CSV analysis during EDA
+matplotlib==3.9.4         # EDA plots
+seaborn==0.13.2           # Prettier EDA plots
+
+albumentations==1.4.18    # Offline custom augmentation pipeline
+
+wandb==0.19.1             # Metrics logging (used in both phases)
+
+python-dotenv==1.0.1      # Load API keys from .env without hardcoding
+PyYAML==6.0.2             # Read/write our config YAML files
+tqdm==4.67.1              # Progress bars in scripts
+ipykernel==6.29.5         # Lets the Conda env appear in VS Code notebooks
