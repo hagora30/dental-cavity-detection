@@ -36,3 +36,7 @@ env/
 .DS_Store
 Thumbs.db
 desktop.ini
+# Additional ignores
+.env.save
+processed_data.zip
+notebooks/eda_outputs/
