@@ -44,10 +44,10 @@ CLASS_NAMES = ["Cavity", "Fillings", "Impacted Tooth", "Implant"]
 # How many total augmented copies to generate per minority image
 # These are tuned to bring minority classes closer to Fillings count
 AUGMENT_TARGETS = {
-    "Cavity":         3,   # ×3 → ~1338 additional annotations
-    "Impacted Tooth": 3,   # ×3 → ~960 additional annotations
-    "Implant":        1,   # ×1 → ~1205 additional annotations
-    "Fillings":       0,   # not augmented
+    "Cavity":         6,   # was 3 — double it
+    "Impacted Tooth": 4,   # was 3 — slight increase
+    "Implant":        1,   # unchanged
+    "Fillings":       0,   # never augment
 }
 
 RANDOM_SEED = 42
