@@ -1,0 +1,60 @@
+# configs/train_config.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+# All training hyperparameters in one place.
+# train.py reads this file — never hardcode values in the script itself.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Model ─────────────────────────────────────────────────────────────────────
+model:
+  architecture: yolov8m          # m = medium. Good balance for small objects.
+                                 # Upgrade to yolov8l on cloud if mAP plateaus.
+  pretrained: true               # Start from COCO weights — always for medical imaging
+  imgsz: 640                     # Input resolution. Use 1280 on cloud if GPU allows.
+
+# ── Training schedule ─────────────────────────────────────────────────────────
+training:
+  epochs: 3                      # <<< SET TO 3 FOR LOCAL SMOKE TEST
+                                 #     Change to 150 on Lightning AI
+  batch: 4                       # <<< Small for local CPU. Use 16-32 on cloud GPU.
+  workers: 2                     # Data loader workers. Use 8 on cloud.
+  patience: 30                   # Early stopping — halt if no improvement for 30 epochs
+  optimizer: AdamW
+  lr0: 0.001                     # Initial learning rate
+  lrf: 0.01                      # Final lr = lr0 * lrf
+  warmup_epochs: 3               # Gradual LR warmup — important for fine-tuning
+  weight_decay: 0.0005
+  momentum: 0.937
+
+# ── Class loss weights (corrects residual 6.5x imbalance) ────────────────────
+# Higher weight = model penalised more for missing that class.
+# Cavity and Impacted Tooth get 3x penalty — they are clinically critical.
+loss:
+  cls_pw: 1.0                    # classification loss positive weight
+  fl_gamma: 1.5                  # focal loss gamma — focuses on hard examples
+
+# ── YOLOv8 built-in augmentation (online, during training) ───────────────────
+# These complement our offline Albumentations pipeline.
+# HSV shifts are zeroed — X-rays are grayscale, hue/sat changes are wasted.
+augmentation:
+  hsv_h: 0.0                     # hue shift — DISABLED for X-rays
+  hsv_s: 0.0                     # saturation shift — DISABLED for X-rays
+  hsv_v: 0.3                     # value/brightness shift — keep moderate
+  degrees: 5.0                   # random rotation (complements our offline ±10°)
+  translate: 0.1
+  scale: 0.3
+  fliplr: 0.5                    # horizontal flip — valid for panoramic X-rays
+  flipud: 0.0                    # vertical flip — DISABLED (upside-down jaw = wrong)
+  mosaic: 1.0                    # mosaic — KEEP ON, great for small objects
+  mixup: 0.1                     # light mixup
+  copy_paste: 0.0                # disabled — not appropriate for medical imaging
+
+# ── Logging & output ──────────────────────────────────────────────────────────
+logging:
+  project: dental-cavity-detection
+  run_name: yolov8m-baseline
+  save_dir: runs/
+  wandb: true
+
+# ── Paths (resolved at runtime by train.py) ───────────────────────────────────
+data:
+  config: configs/dataset.yaml
