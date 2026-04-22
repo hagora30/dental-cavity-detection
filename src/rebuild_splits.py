@@ -1,0 +1,264 @@
+"""
+src/rebuild_splits.py
+---------------------
+Roboflow's augmentation scattered multiple versions of the same original
+image across train/valid/test splits, causing data leakage.
+
+This script:
+  1. Pools ALL images from data/cleaned/ into one flat collection
+  2. Groups them by original source stem (before the rf. hash)
+  3. Re-splits source groups 70/20/10 at the SOURCE level (not image level)
+  4. Writes the clean re-split to data/processed/
+  5. Copies the configs/dataset.yaml with corrected absolute paths
+
+Usage:
+    python src/rebuild_splits.py
+"""
+
+import shutil
+import random
+from pathlib import Path
+from collections import defaultdict
+
+
+# ── Config ────────────────────────────────────────────────────────────────────
+
+CLEAN_DIR     = Path("data/cleaned")
+PROCESSED_DIR = Path("data/processed")
+REPORT_PATH   = Path("notebooks/eda_outputs/split_rebuild_report.txt")
+SPLITS        = ["train", "valid", "test"]
+CLASS_NAMES   = ["Cavity", "Fillings", "Impacted Tooth", "Implant"]
+
+# Re-split ratios applied at the SOURCE image level
+TRAIN_RATIO = 0.70
+VALID_RATIO = 0.20
+# test gets the remainder (~0.10)
+
+RANDOM_SEED = 42   # fixed for reproducibility
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def get_source_stem(stem: str) -> str:
+    """
+    Extracts the original image ID before Roboflow's rf. hash.
+    '0546_jpg.rf.1d24c3b3...'  →  '0546'
+    'plain_image'               →  'plain_image'
+    """
+    for delimiter in ["_jpg.rf.", "_png.rf.", "_jpeg.rf."]:
+        if delimiter in stem:
+            return stem.split(delimiter)[0]
+    return stem
+
+
+def find_image_file(image_dir: Path, stem: str) -> Path | None:
+    """Finds an image file by stem regardless of extension."""
+    for ext in [".jpg", ".jpeg", ".png", ".bmp"]:
+        candidate = image_dir / (stem + ext)
+        if candidate.exists():
+            return candidate
+    return None
+
+
+# ── Core rebuild ──────────────────────────────────────────────────────────────
+
+def pool_all_images() -> dict[str, list[tuple[str, Path, Path]]]:
+    """
+    Scans all splits in data/cleaned/ and pools every image into a flat
+    dict keyed by source stem.
+
+    Returns:
+        { source_stem: [(file_stem, img_path, label_path), ...] }
+    """
+    source_groups: dict[str, list] = defaultdict(list)
+
+    for split in SPLITS:
+        img_dir = CLEAN_DIR / split / "images"
+        lbl_dir = CLEAN_DIR / split / "labels"
+
+        if not img_dir.exists():
+            continue
+
+        for img_path in sorted(img_dir.glob("*")):
+            if img_path.suffix.lower() not in [".jpg", ".jpeg", ".png", ".bmp"]:
+                continue
+
+            stem       = img_path.stem
+            label_path = lbl_dir / (stem + ".txt")
+            source     = get_source_stem(stem)
+
+            source_groups[source].append((stem, img_path, label_path))
+
+    return dict(source_groups)
+
+
+def assign_splits(
+    source_groups: dict[str, list]
+) -> dict[str, list[tuple[str, Path, Path]]]:
+    """
+    Assigns each SOURCE group to exactly one split.
+    All augmented variants of a source go to the same split.
+
+    Returns:
+        { 'train': [(stem, img_path, lbl_path), ...],
+          'valid': [...],
+          'test':  [...] }
+    """
+    sources = sorted(source_groups.keys())
+    random.seed(RANDOM_SEED)
+    random.shuffle(sources)
+
+    n          = len(sources)
+    n_train    = int(n * TRAIN_RATIO)
+    n_valid    = int(n * VALID_RATIO)
+
+    train_src  = sources[:n_train]
+    valid_src  = sources[n_train:n_train + n_valid]
+    test_src   = sources[n_train + n_valid:]
+
+    split_assignments: dict[str, list] = {"train": [], "valid": [], "test": []}
+
+    for src in train_src:
+        split_assignments["train"].extend(source_groups[src])
+    for src in valid_src:
+        split_assignments["valid"].extend(source_groups[src])
+    for src in test_src:
+        split_assignments["test"].extend(source_groups[src])
+
+    return split_assignments
+
+
+def write_processed_split(
+    split_assignments: dict[str, list]
+) -> dict[str, dict[str, int]]:
+    """
+    Copies images and labels into data/processed/ under the new split.
+    Returns per-split class counts for the report.
+    """
+    # Wipe and recreate processed dir for a clean write
+    if PROCESSED_DIR.exists():
+        shutil.rmtree(PROCESSED_DIR)
+
+    class_counts: dict[str, dict[str, int]] = {}
+
+    for split, entries in split_assignments.items():
+        img_out = PROCESSED_DIR / split / "images"
+        lbl_out = PROCESSED_DIR / split / "labels"
+        img_out.mkdir(parents=True, exist_ok=True)
+        lbl_out.mkdir(parents=True, exist_ok=True)
+
+        counts = defaultdict(int)
+
+        for stem, img_path, label_path in entries:
+            # Copy image
+            shutil.copy2(img_path, img_out / img_path.name)
+
+            # Copy label and count classes
+            if label_path.exists():
+                shutil.copy2(label_path, lbl_out / label_path.name)
+                with open(label_path) as f:
+                    for line in f:
+                        parts = line.strip().split()
+                        if parts:
+                            cls_id = int(parts[0])
+                            cls_name = CLASS_NAMES[cls_id] if cls_id < len(CLASS_NAMES) else "unknown"
+                            counts[cls_name] += 1
+            else:
+                # Write empty label file so YOLOv8 doesn't error
+                (lbl_out / (stem + ".txt")).touch()
+
+        class_counts[split] = dict(counts)
+        print(f"[rebuild] {split:6s} → {len(entries):4d} images written")
+
+    return class_counts
+
+
+def write_dataset_yaml() -> None:
+    """Writes a corrected dataset.yaml pointing to data/processed/."""
+    yaml_content = f"""# configs/dataset.yaml — regenerated by rebuild_splits.py
+# Paths are relative to the project root.
+
+path: data/processed
+train: train/images
+val:   valid/images
+test:  test/images
+
+nc: 4
+names:
+  - Cavity
+  - Fillings
+  - Impacted Tooth
+  - Implant
+
+source:
+  platform: Roboflow
+  project: dental-cavity-qfnzu
+  version: 3
+  note: >
+    Splits rebuilt from scratch at source-image level to eliminate
+    cross-split leakage introduced by Roboflow augmentation hashes.
+  seed: {RANDOM_SEED}
+"""
+    out = Path("configs/dataset.yaml")
+    out.write_text(yaml_content)
+    print(f"[rebuild] configs/dataset.yaml updated → points to data/processed/")
+
+
+# ── Report ────────────────────────────────────────────────────────────────────
+
+def write_report(
+    source_groups: dict,
+    split_assignments: dict,
+    class_counts: dict
+) -> None:
+    lines = []
+    lines.append("=" * 60)
+    lines.append("  SPLIT REBUILD REPORT")
+    lines.append("=" * 60)
+    lines.append(f"\n  Total unique source images : {len(source_groups)}")
+    lines.append(f"  Total augmented images     : {sum(len(v) for v in source_groups.values())}")
+    lines.append(f"  Random seed                : {RANDOM_SEED}")
+    lines.append(f"  Split ratios (source-level): "
+                 f"train={TRAIN_RATIO:.0%}  valid={VALID_RATIO:.0%}  "
+                 f"test={1-TRAIN_RATIO-VALID_RATIO:.0%}")
+
+    lines.append("\n── Image counts after rebuild ──")
+    for split in SPLITS:
+        n = len(split_assignments.get(split, []))
+        lines.append(f"  {split:6s} : {n:4d} images")
+
+    lines.append("\n── Class distribution after rebuild ──")
+    for split in SPLITS:
+        lines.append(f"\n  {split.upper()}")
+        counts = class_counts.get(split, {})
+        total  = sum(counts.values())
+        for cls in CLASS_NAMES:
+            count = counts.get(cls, 0)
+            pct   = count / total * 100 if total > 0 else 0
+            lines.append(f"    {cls:<16s} {count:5d}  ({pct:5.1f}%)")
+
+    lines.append("\n  data/processed/ is clean and leakage-free.")
+    lines.append("=" * 60)
+
+    REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    REPORT_PATH.write_text("\n".join(lines))
+    print("\n" + "\n".join(lines))
+
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    print("[rebuild] Pooling all images from data/cleaned/...")
+    source_groups = pool_all_images()
+    print(f"[rebuild] Found {len(source_groups)} unique source images "
+          f"({sum(len(v) for v in source_groups.values())} total with augmentations)")
+
+    print("[rebuild] Assigning splits at source level...")
+    split_assignments = assign_splits(source_groups)
+
+    print("[rebuild] Writing data/processed/...")
+    class_counts = write_processed_split(split_assignments)
+
+    write_dataset_yaml()
+    write_report(source_groups, split_assignments, class_counts)
+    
