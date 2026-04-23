@@ -17,3 +17,4 @@ python-dotenv==1.0.1      # Load API keys from .env without hardcoding
 PyYAML==6.0.2             # Read/write our config YAML files
 tqdm==4.67.1              # Progress bars in scripts
 ipykernel==6.29.5         # Lets the Conda env appear in VS Code notebooks
+onnxscript onnxruntime==1.20.0        # For ONNX export and inference (optional)
