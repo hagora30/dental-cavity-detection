@@ -5,7 +5,7 @@ model:
 
 training:
   epochs: 200
-  batch: 8
+  batch: 24
   workers: 8
   patience: 50
   optimizer: AdamW
