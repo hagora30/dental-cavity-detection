@@ -1,17 +1,3 @@
-"""
-train.py
---------
-Main training entry point for both local smoke tests and cloud runs.
-
-The behaviour is controlled entirely by configs/train_config.yaml:
-  - epochs: 3  → local smoke test (CPU, ~2 min)
-  - epochs: 150 → full cloud run  (GPU, Lightning AI)
-
-Usage:
-    python src/train.py                          # uses train_config.yaml
-    python src/train.py --smoke                  # forces 3-epoch CPU test
-    python src/train.py --config path/to/cfg.yaml
-"""
 
 import argparse
 import os
@@ -24,7 +10,6 @@ from dotenv import load_dotenv
 from ultralytics import YOLO
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def load_config(config_path: str) -> dict:
     """Loads and returns the YAML training config as a dict."""
@@ -79,7 +64,6 @@ def init_wandb(cfg: dict, smoke_test: bool) -> None:
     print(f"[train] WandB run initialised: {run_name}")
 
 
-# ── Main training function ────────────────────────────────────────────────────
 
 def run_training(config_path: str, smoke_test: bool = False) -> None:
     """
@@ -92,7 +76,7 @@ def run_training(config_path: str, smoke_test: bool = False) -> None:
     epochs = 3    if smoke_test else cfg["training"]["epochs"]
     batch  = 2    if smoke_test else cfg["training"]["batch"]
     imgsz  = 320  if smoke_test else cfg["model"]["imgsz"]
-    device = "cpu"
+    device = "cpu" if smoke_test else "cuda"
 
     print(f"\n[train] ── Run configuration ──────────────────────")
     print(f"  Mode      : {'SMOKE TEST' if smoke_test else 'FULL TRAINING'}")
@@ -104,18 +88,14 @@ def run_training(config_path: str, smoke_test: bool = False) -> None:
     print(f"  Data      : {data_yaml}")
     print(f"──────────────────────────────────────────────────\n")
 
-    # ── WandB init ────────────────────────────────────────────────
     init_wandb(cfg, smoke_test)
 
-    # ── Load model ────────────────────────────────────────────────
     model_name = cfg["model"]["architecture"]
     model = YOLO(f"{model_name}.pt")   # downloads pretrained weights if needed
     print(f"[train] Model loaded: {model_name}")
 
-    # ── Augmentation settings from config ─────────────────────────
     aug = cfg["augmentation"]
 
-    # ── Launch training ───────────────────────────────────────────
     results = model.train(
         data       = data_yaml,
         epochs     = epochs,
@@ -158,7 +138,6 @@ def run_training(config_path: str, smoke_test: bool = False) -> None:
         print("[train] WandB run closed.")
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train YOLOv8 dental cavity detector")
