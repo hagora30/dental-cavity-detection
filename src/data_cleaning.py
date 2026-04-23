@@ -1,19 +1,3 @@
-"""
-data_cleaning.py
-----------------
-Cleans the raw dataset and writes sanitised output to data/cleaned/.
-
-Actions performed:
-  1. Remove annotations with near-zero bounding box area (noise)
-  2. Detect Roboflow-duplicated images (same source, multiple rf. hashes)
-  3. Verify no image appears in both train and valid splits (leakage check)
-  4. Copy clean images + labels to data/cleaned/ preserving split structure
-  5. Write a cleaning report to notebooks/eda_outputs/cleaning_report.txt
-
-Usage (from project root):
-    python src/data_cleaning.py
-"""
-
 import shutil
 import cv2
 from pathlib import Path
@@ -21,7 +5,6 @@ from collections import defaultdict
 import pandas as pd
 
 
-# ── Config ────────────────────────────────────────────────────────────────────
 
 RAW_DIR     = Path("data/raw")
 CLEAN_DIR   = Path("data/cleaned")
@@ -36,7 +19,6 @@ MIN_BOX_AREA = 0.0005
 OUTLIER_STD_MULTIPLIER = 3.0
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def get_source_stem(filename: str) -> str:
     """
@@ -81,7 +63,6 @@ def write_labels(label_path: Path, rows: list[list[float]]) -> None:
             f.write(f"{cls} {row[1]:.6f} {row[2]:.6f} {row[3]:.6f} {row[4]:.6f}\n")
 
 
-# ── Cleaning passes ───────────────────────────────────────────────────────────
 
 def pass1_remove_tiny_boxes(
     rows: list[list[float]],
@@ -196,7 +177,6 @@ def pass4_check_leakage(all_stems: dict[str, list[str]]) -> list[str]:
     return leaking
 
 
-# ── Main pipeline ─────────────────────────────────────────────────────────────
 
 def run_cleaning() -> None:
     report_lines = []
@@ -298,7 +278,6 @@ def run_cleaning() -> None:
         pct   = count / total_train * 100 if total_train > 0 else 0
         report_lines.append(f"  {cls:<16s} {count:5d}  ({pct:5.1f}%)")
 
-    # ── Summary ───────────────────────────────────────────────────
     report_lines.append("\n── Summary ──")
     report_lines.append(f"  Total images copied : {total_images_copied}")
     report_lines.append(f"  Tiny boxes removed  : {total_removed_boxes}")
@@ -308,7 +287,6 @@ def run_cleaning() -> None:
     report_lines.append("\n  data/cleaned/ is ready for augmentation.")
     report_lines.append("=" * 60)
 
-    # ── Write report ──────────────────────────────────────────────
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(REPORT_PATH, "w") as f:
         f.write("\n".join(report_lines))
@@ -317,7 +295,6 @@ def run_cleaning() -> None:
     print("\n" + "\n".join(report_lines))
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     print("[cleaning] Starting data cleaning pipeline...")
