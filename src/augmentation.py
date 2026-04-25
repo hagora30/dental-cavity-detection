@@ -1,28 +1,3 @@
-"""
-augmentation.py
----------------
-Offline augmentation pipeline targeting class imbalance correction.
-
-Strategy:
-  - Only augments the TRAINING split
-  - Only oversamples MINORITY classes (Cavity, Impacted Tooth, Implant)
-  - Fillings are NOT augmented — they already dominate at 65%
-  - Uses domain-appropriate transforms for grayscale dental X-rays
-  - Writes augmented images + labels to data/processed/train/ alongside originals
-
-Augmentation design for dental X-rays:
-  - NO hue/saturation shifts (X-rays are grayscale — meaningless)
-  - YES to brightness/contrast (mimics different X-ray exposure settings)
-  - YES to horizontal flips (bilateral jaw symmetry — clinically valid)
-  - YES to small rotations ±10° (patient head tilt)
-  - YES to CLAHE (enhances bone/tissue contrast variation)
-  - YES to slight elastic distortion (anatomical variation)
-  - NO to heavy crops (small boxes would be lost)
-  - NO to mosaic here (handled by YOLOv8 built-in during training)
-
-Usage:
-    python src/augmentation.py
-"""
 
 import cv2
 import random
@@ -33,7 +8,6 @@ from pathlib import Path
 from collections import defaultdict
 
 
-# ── Config ────────────────────────────────────────────────────────────────────
 
 PROCESSED_DIR = Path("data/processed")
 TRAIN_IMG_DIR = PROCESSED_DIR / "train" / "images"
@@ -54,7 +28,6 @@ RANDOM_SEED = 42
 MIN_VISIBLE_FRACTION = 0.50   # discard box if < 50% remains after transform
 
 
-# ── Albumentations pipeline ───────────────────────────────────────────────────
 
 def build_augmentation_pipeline() -> A.Compose:
     """
@@ -64,7 +37,7 @@ def build_augmentation_pipeline() -> A.Compose:
     """
     return A.Compose(
         [
-            # ── Geometry (mild — preserve small boxes) ────────────────────
+            # ── Geometry (mild — preserve small boxes) 
             A.HorizontalFlip(p=0.5),
 
             A.ShiftScaleRotate(
@@ -76,7 +49,7 @@ def build_augmentation_pipeline() -> A.Compose:
                 p=0.7
             ),
 
-            # ── Intensity (mimics X-ray exposure variation) ────────────────
+            # ── Intensity (mimics X-ray exposure variation)
             A.RandomBrightnessContrast(
                 brightness_limit=0.20,
                 contrast_limit=0.20,
@@ -89,19 +62,19 @@ def build_augmentation_pipeline() -> A.Compose:
                 p=0.5
             ),
 
-            # ── Noise (mimics X-ray sensor noise) ─────────────────────────
+            # ── Noise (mimics X-ray sensor noise) 
             A.GaussNoise(
                 var_limit=(5.0, 20.0),
                 p=0.3
             ),
 
-            # ── Blur (mimics slight motion / focus variation) ──────────────
+            # ── Blur (mimics slight motion / focus variation) 
             A.OneOf([
                 A.GaussianBlur(blur_limit=(3, 5), p=1.0),
                 A.MedianBlur(blur_limit=3, p=1.0),
             ], p=0.2),
 
-            # ── Elastic distortion (subtle anatomical variation) ───────────
+            # ── Elastic distortion (subtle anatomical variation)
             A.ElasticTransform(
                 alpha=30,
                 sigma=5,
@@ -116,7 +89,6 @@ def build_augmentation_pipeline() -> A.Compose:
     )
 
 
-# ── Label I/O ─────────────────────────────────────────────────────────────────
 
 def read_yolo_labels(label_path: Path) -> tuple[list[int], list[list[float]]]:
     """
@@ -147,7 +119,6 @@ def write_yolo_labels(
             f.write(f"{int(float(cls_id))} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}\n")
 
 
-# ── Core augmentation loop ────────────────────────────────────────────────────
 
 def get_dominant_class(class_ids: list[int]) -> str:
     """
@@ -248,7 +219,6 @@ def augment_training_set() -> None:
             new_image_count += 1
             aug_counts[dominant_cls] += 1
 
-    # ── Summary ───────────────────────────────────────────────────
     print("\n[augmentation] ── Augmentation complete ──")
     print(f"  New images generated : {new_image_count}")
     for cls in CLASS_NAMES:
@@ -259,7 +229,6 @@ def augment_training_set() -> None:
     print(f"  Output directory      : {TRAIN_IMG_DIR}")
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     print("[augmentation] Starting offline augmentation pipeline...")
