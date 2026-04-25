@@ -1,0 +1,24 @@
+=================================================================
+  EVALUATION REPORT — YOLOv8m Dental Cavity Detection
+=================================================================
+
+── Per-class metrics (test split) ───────────────────────
+  Class             Precision     Recall      mAP50   mAP50-95
+  ───────────────────────────────────────────────────────
+  ALL                   0.815      0.639      0.758      0.462
+  ───────────────────────────────────────────────────────
+  Cavity                0.728      0.281      0.433      0.252
+  Fillings              0.847      0.721      0.820      0.484
+  Impacted Tooth        0.732      0.659      0.816      0.520
+  Implant               0.954      0.896      0.961      0.592
+
+── Clinical interpretation ───────────────────────────────
+  ⚠ Cavity recall 0.281 — model misses 71.9% of cavities
+    → Recommend: more Cavity augmentation + yolov8l
+
+── Recommendations for next iteration ────────────────────
+  1. Increase Cavity augmentation multiplier from 3x to 5x
+  2. Try yolov8l architecture for better small object detection
+  3. Increase imgsz from 640 to 1280 — cavities are tiny
+  4. Set patience=50 to allow longer convergence
+=================================================================
