@@ -40,3 +40,10 @@ desktop.ini
 .env.save
 processed_data.zip
 notebooks/eda_outputs/
+
+# Large files that should never be committed
+processed_data.zip
+yolov8m.pt
+yolov8l.pt
+*.pt
+.env.save
