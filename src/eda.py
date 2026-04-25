@@ -1,15 +1,3 @@
-"""
-eda.py
-------
-Exploratory Data Analysis for the dental cavity detection dataset.
-Analyses class distribution, bounding box statistics, image properties,
-and flags potential data quality issues before any training begins.
-
-Usage (from project root):
-    python src/eda.py
-
-Outputs saved to: notebooks/eda_outputs/
-"""
 
 import json
 import cv2
@@ -24,7 +12,6 @@ from pathlib import Path
 from collections import defaultdict
 
 
-# ── Config ────────────────────────────────────────────────────────────────────
 
 DATA_ROOT   = Path("data/raw")
 OUTPUT_DIR  = Path("notebooks/eda_outputs")
@@ -42,7 +29,6 @@ CLASS_COLORS = {
 }
 
 
-# ── Data loading ──────────────────────────────────────────────────────────────
 
 def load_split(split: str) -> pd.DataFrame:
     """
@@ -113,7 +99,6 @@ def load_all_splits() -> pd.DataFrame:
     return df
 
 
-# ── Analysis functions ────────────────────────────────────────────────────────
 
 def print_summary(df: pd.DataFrame) -> None:
     """Prints a concise text summary to the terminal."""
@@ -363,7 +348,6 @@ def flag_data_issues(df: pd.DataFrame) -> None:
     print("─"*55 + "\n")
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     print("[eda] Loading dataset annotations...")
