@@ -1,5 +1,23 @@
-# Dental Cavity Detection — YOLOv8 Pipeline
+<h1 style="color:#2c5d85;">Dental Cavity Detection</h1>
 
+<p style="font-size:18px;">YOLOv8 Object Detection Pipeline</p>
+
+<div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+  <div style="background:#2c6fb7; color:white; padding:6px 12px; border-radius:4px;">
+    Model: YOLOv8m
+  </div>
+  <div style="background:#2e8b57; color:white; padding:6px 12px; border-radius:4px;">
+    GPU: NVIDIA L40S
+  </div>
+  <div style="background:#7a3db8; color:white; padding:6px 12px; border-radius:4px;">
+    mAP50: 0.758
+  </div>
+  <div style="background:#c96a00; color:white; padding:6px 12px; border-radius:4px;">
+    Export: ONNX 99MB
+  </div>
+</div>
+
+<hr>
 ## Overview
 Dental Cavity Detection  
 YOLOv8 Object Detection Pipeline  
@@ -127,14 +145,14 @@ Resolution increased from 640 to 1280.
 
 ### Local Setup
 
-    git clone https://github.com/hagara30/dental-cavity-detection.git
+    git clone https://github.com/hagora30/dental-cavity-detection.git
     cd dental-cavity-detection
     conda env create -f environment.yml
     conda activate dental-cv
 
 ### Cloud Setup
 
-    git clone https://github.com/hagara30/dental-cavity-detection.git
+    git clone https://github.com/hagora30/dental-cavity-detection.git
     cd dental-cavity-detection
     pip install -r requirements-cloud.txt
 
