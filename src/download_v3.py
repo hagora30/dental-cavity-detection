@@ -1,5 +1,3 @@
-# Run this once as a standalone script — not in a notebook
-# src/download_v3.py
 
 import os
 from pathlib import Path
