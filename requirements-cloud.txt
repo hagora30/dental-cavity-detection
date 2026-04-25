@@ -1,0 +1,8 @@
+ultralytics==8.3.40
+wandb==0.19.1
+python-dotenv==1.0.1
+PyYAML==6.0.2
+albumentations==1.4.18
+roboflow==1.1.48
+onnx
+onnxscript
