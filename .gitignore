@@ -47,3 +47,17 @@ yolov8m.pt
 yolov8l.pt
 *.pt
 .env.save
+
+# Allow result charts from training runs
+!runs/yolov8m-run2-imgsz1280/*.png
+!runs/yolov8m-run2-imgsz1280/*.csv
+!runs/yolov8m-run2-imgsz1280/results.png
+
+# Allow EDA and evaluation outputs
+!notebooks/
+!notebooks/eda_outputs/
+!notebooks/eda_outputs/*.png
+!notebooks/eda_outputs/*.txt
+!notebooks/eda_outputs/evaluation/
+!notebooks/eda_outputs/evaluation/*.png
+!notebooks/eda_outputs/evaluation/*.txt
