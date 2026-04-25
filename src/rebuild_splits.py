@@ -1,19 +1,3 @@
-"""
-src/rebuild_splits.py
----------------------
-Roboflow's augmentation scattered multiple versions of the same original
-image across train/valid/test splits, causing data leakage.
-
-This script:
-  1. Pools ALL images from data/cleaned/ into one flat collection
-  2. Groups them by original source stem (before the rf. hash)
-  3. Re-splits source groups 70/20/10 at the SOURCE level (not image level)
-  4. Writes the clean re-split to data/processed/
-  5. Copies the configs/dataset.yaml with corrected absolute paths
-
-Usage:
-    python src/rebuild_splits.py
-"""
 
 import shutil
 import random
@@ -21,7 +5,6 @@ from pathlib import Path
 from collections import defaultdict
 
 
-# ── Config ────────────────────────────────────────────────────────────────────
 
 CLEAN_DIR     = Path("data/cleaned")
 PROCESSED_DIR = Path("data/processed")
@@ -37,7 +20,6 @@ VALID_RATIO = 0.20
 RANDOM_SEED = 42   # fixed for reproducibility
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def get_source_stem(stem: str) -> str:
     """
@@ -60,7 +42,6 @@ def find_image_file(image_dir: Path, stem: str) -> Path | None:
     return None
 
 
-# ── Core rebuild ──────────────────────────────────────────────────────────────
 
 def pool_all_images() -> dict[str, list[tuple[str, Path, Path]]]:
     """
@@ -204,7 +185,6 @@ source:
     print(f"[rebuild] configs/dataset.yaml updated → points to data/processed/")
 
 
-# ── Report ────────────────────────────────────────────────────────────────────
 
 def write_report(
     source_groups: dict,
@@ -245,7 +225,6 @@ def write_report(
     print("\n" + "\n".join(lines))
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     print("[rebuild] Pooling all images from data/cleaned/...")
