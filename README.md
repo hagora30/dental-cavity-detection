@@ -18,16 +18,7 @@
 </div>
 
 <hr>
-## Overview
-Dental Cavity Detection  
-YOLOv8 Object Detection Pipeline  
 
-- Model: YOLOv8m  
-- GPU: NVIDIA L40S  
-- mAP50: 0.758  
-- Export: ONNX (99MB)
-
----
 
 ## Executive Summary
 A complete, end-to-end machine learning pipeline for automated detection of dental conditions in panoramic X-ray images.
