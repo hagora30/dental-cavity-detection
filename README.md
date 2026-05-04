@@ -57,6 +57,7 @@ Clinical decision support. The model highlights regions for review, not a replac
 | Split | 804 train / 230 valid / 114 test |
 | Avg annotations per image | 7.4 |
 
+processed dataset on kaggle : https://www.kaggle.com/datasets/hagargalall/x-ray-dental-data
 ---
 
 ## Key Challenges
