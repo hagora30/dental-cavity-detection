@@ -3,13 +3,10 @@ import argparse
 import os
 import sys
 from pathlib import Path
-
 import wandb
 import yaml
 from dotenv import load_dotenv
 from ultralytics import YOLO
-
-
 
 def load_config(config_path: str) -> dict:
     """Loads and returns the YAML training config as a dict."""
@@ -20,10 +17,7 @@ def load_config(config_path: str) -> dict:
 
 
 def resolve_dataset_yaml(cfg: dict) -> str:
-    """
-    Returns the absolute path to dataset.yaml.
-    YOLOv8 requires an absolute path when called from arbitrary working dirs.
-    """
+
     rel_path = cfg["data"]["config"]
     abs_path = str(Path(rel_path).resolve())
     if not Path(abs_path).exists():
@@ -33,12 +27,8 @@ def resolve_dataset_yaml(cfg: dict) -> str:
         )
     return abs_path
 
-
 def init_wandb(cfg: dict, smoke_test: bool) -> None:
-    """
-    Initialises a WandB run if enabled in config.
-    Skipped automatically if WANDB_API_KEY is not set.
-    """
+   
     load_dotenv()
     api_key = os.getenv("WANDB_API_KEY")
 
@@ -72,7 +62,6 @@ def run_training(config_path: str, smoke_test: bool = False) -> None:
     cfg        = load_config(config_path)
     data_yaml  = resolve_dataset_yaml(cfg)
 
-    # ── Override settings for smoke test ──────────────────────────
     epochs = 3    if smoke_test else cfg["training"]["epochs"]
     batch  = 2    if smoke_test else cfg["training"]["batch"]
     imgsz  = 320  if smoke_test else cfg["model"]["imgsz"]
@@ -86,12 +75,11 @@ def run_training(config_path: str, smoke_test: bool = False) -> None:
     print(f"  Imgsz     : {imgsz}")
     print(f"  Device    : {device}")
     print(f"  Data      : {data_yaml}")
-    print(f"──────────────────────────────────────────────────\n")
 
     init_wandb(cfg, smoke_test)
 
     model_name = cfg["model"]["architecture"]
-    model = YOLO(f"{model_name}.pt")   # downloads pretrained weights if needed
+    model = YOLO(f"{model_name}.pt")   
     print(f"[train] Model loaded: {model_name}")
 
     aug = cfg["augmentation"]
