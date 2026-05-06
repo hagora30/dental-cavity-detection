@@ -5,31 +5,20 @@ from collections import defaultdict
 import pandas as pd
 
 
-
 RAW_DIR     = Path("data/raw")
 CLEAN_DIR   = Path("data/cleaned")
 REPORT_PATH = Path("notebooks/eda_outputs/cleaning_report.txt")
 SPLITS      = ["train", "valid", "test"]
 CLASS_NAMES = ["Cavity", "Fillings", "Impacted Tooth", "Implant"]
 
-# Boxes with normalised area below this threshold are treated as noise
 MIN_BOX_AREA = 0.0005
 
-# Images whose annotation count exceeds mean + N*std are flagged (not removed)
 OUTLIER_STD_MULTIPLIER = 3.0
 
 
 
 def get_source_stem(filename: str) -> str:
-    """
-    Extracts the original image ID from a Roboflow-augmented filename.
 
-    Roboflow renames files as:  <original_stem>_jpg.rf.<hash>
-    We want just:               <original_stem>
-
-    Example:
-        '0546_jpg.rf.1d24c3b34f81049db8632b4c1607bba8'  →  '0546'
-    """
     name = Path(filename).stem
     if "_jpg.rf." in name:
         return name.split("_jpg.rf.")[0]
@@ -39,10 +28,7 @@ def get_source_stem(filename: str) -> str:
 
 
 def read_labels(label_path: Path) -> list[list[float]]:
-    """
-    Reads a YOLO label file and returns a list of
-    [class_id, cx, cy, w, h] rows. Returns empty list if file is missing.
-    """
+
     if not label_path.exists():
         return []
     rows = []
@@ -55,7 +41,6 @@ def read_labels(label_path: Path) -> list[list[float]]:
 
 
 def write_labels(label_path: Path, rows: list[list[float]]) -> None:
-    """Writes cleaned label rows back to a YOLO .txt file."""
     label_path.parent.mkdir(parents=True, exist_ok=True)
     with open(label_path, "w") as f:
         for row in rows:
@@ -69,10 +54,7 @@ def pass1_remove_tiny_boxes(
     filename: str,
     report_lines: list[str]
 ) -> tuple[list[list[float]], int]:
-    """
-    Pass 1: Drop any box whose normalised area (w*h) is below MIN_BOX_AREA.
-    Returns the cleaned rows and the count of removed boxes.
-    """
+
     cleaned = []
     removed = 0
     for row in rows:
@@ -94,23 +76,17 @@ def pass2_clamp_boxes(
     filename: str,
     report_lines: list[str]
 ) -> tuple[list[list[float]], int]:
-    """
-    Pass 2: Clamp any box coordinates that fall outside [0, 1].
-    Roboflow augmentations can occasionally produce boxes that slightly
-    exceed image boundaries.
-    """
+
     clamped_count = 0
     fixed_rows = []
     for row in rows:
         cls, cx, cy, w, h = row
 
-        # Clamp centre and size so the box stays within [0,1]
         cx = max(0.0, min(1.0, cx))
         cy = max(0.0, min(1.0, cy))
         w  = max(0.001, min(1.0, w))
         h  = max(0.001, min(1.0, h))
 
-        # Ensure the box doesn't extend past image edges
         x1 = cx - w / 2
         x2 = cx + w / 2
         y1 = cy - h / 2
@@ -136,12 +112,7 @@ def pass2_clamp_boxes(
 
 
 def pass3_detect_duplicates(all_stems: dict[str, list[str]]) -> dict[str, list[str]]:
-    """
-    Pass 3: Groups filenames by their Roboflow source stem.
-    Returns only groups that have more than one image (true duplicates).
 
-    all_stems: { split -> [filename_stem, ...] }
-    """
     source_map = defaultdict(list)   # source_stem -> [(split, filename)]
 
     for split, stems in all_stems.items():
@@ -158,10 +129,7 @@ def pass3_detect_duplicates(all_stems: dict[str, list[str]]) -> dict[str, list[s
 
 
 def pass4_check_leakage(all_stems: dict[str, list[str]]) -> list[str]:
-    """
-    Pass 4: Checks whether the same source image appears in both
-    train and valid/test splits — which would constitute data leakage.
-    """
+
     split_sources = {}
     for split, stems in all_stems.items():
         split_sources[split] = {get_source_stem(s) for s in stems}
@@ -176,8 +144,6 @@ def pass4_check_leakage(all_stems: dict[str, list[str]]) -> list[str]:
 
     return leaking
 
-
-
 def run_cleaning() -> None:
     report_lines = []
     report_lines.append("=" * 60)
@@ -190,7 +156,6 @@ def run_cleaning() -> None:
     all_stems: dict[str, list[str]] = {}
     class_counts_after: dict[str, dict[str, int]] = {}
 
-    # ── Process each split ────────────────────────────────────────
     for split in SPLITS:
         img_dir_raw   = RAW_DIR   / split / "images"
         lbl_dir_raw   = RAW_DIR   / split / "labels"
@@ -231,15 +196,12 @@ def run_cleaning() -> None:
             split_removed += n_removed
             split_clamped += n_clamped
 
-            # Count class distribution after cleaning
             for row in rows:
                 cls_name = CLASS_NAMES[int(row[0])] if int(row[0]) < len(CLASS_NAMES) else "unknown"
                 class_counts_after[split][cls_name] += 1
 
-            # Copy image to cleaned directory
             shutil.copy2(img_path, img_dir_clean / img_path.name)
 
-            # Write cleaned labels (even if unchanged — ensures consistency)
             clean_label_path = lbl_dir_clean / (stem + ".txt")
             write_labels(clean_label_path, rows)
             total_images_copied += 1
@@ -250,7 +212,6 @@ def run_cleaning() -> None:
         print(f"[cleaning] {split:6s} → {len(image_files)} images processed  "
               f"| {split_removed} boxes removed  | {split_clamped} boxes clamped")
 
-    # ── Duplicate and leakage checks ──────────────────────────────
     report_lines.append("\n── Duplicate image detection ──")
     duplicates = pass3_detect_duplicates(all_stems)
     if duplicates:
@@ -259,7 +220,7 @@ def run_cleaning() -> None:
             splits_present = [e[0] for e in entries]
             report_lines.append(f"  {src}: {len(entries)} copies → splits: {splits_present}")
     else:
-        report_lines.append("  ✓ No duplicates found")
+        report_lines.append(" No duplicates found")
 
     report_lines.append("\n── Data leakage check ──")
     leakage = pass4_check_leakage(all_stems)
@@ -267,9 +228,8 @@ def run_cleaning() -> None:
         for line in leakage:
             report_lines.append(line)
     else:
-        report_lines.append("  ✓ No leakage detected — train/valid/test are clean")
+        report_lines.append(" No leakage detected — train/valid/test are clean")
 
-    # ── Class distribution after cleaning ─────────────────────────
     report_lines.append("\n── Class distribution after cleaning (train) ──")
     train_counts = class_counts_after.get("train", {})
     total_train  = sum(train_counts.values())
@@ -291,10 +251,7 @@ def run_cleaning() -> None:
     with open(REPORT_PATH, "w") as f:
         f.write("\n".join(report_lines))
 
-    # Print full report to terminal
     print("\n" + "\n".join(report_lines))
-
-
 
 if __name__ == "__main__":
     print("[cleaning] Starting data cleaning pipeline...")
