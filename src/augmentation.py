@@ -1,4 +1,3 @@
-
 import cv2
 import random
 import shutil
@@ -7,37 +6,26 @@ import albumentations as A
 from pathlib import Path
 from collections import defaultdict
 
-
-
 PROCESSED_DIR = Path("data/processed")
 TRAIN_IMG_DIR = PROCESSED_DIR / "train" / "images"
 TRAIN_LBL_DIR = PROCESSED_DIR / "train" / "labels"
 
 CLASS_NAMES = ["Cavity", "Fillings", "Impacted Tooth", "Implant"]
 
-# How many total augmented copies to generate per minority image
-# These are tuned to bring minority classes closer to Fillings count
 AUGMENT_TARGETS = {
-    "Cavity":         6,   # was 3 — double it
-    "Impacted Tooth": 4,   # was 3 — slight increase
-    "Implant":        1,   # unchanged
-    "Fillings":       0,   # never augment
+    "Cavity":         6,   
+    "Impacted Tooth": 4,   
+    "Implant":        1,   
+    "Fillings":       0,   
 }
 
 RANDOM_SEED = 42
-MIN_VISIBLE_FRACTION = 0.50   # discard box if < 50% remains after transform
-
-
+MIN_VISIBLE_FRACTION = 0.50   
 
 def build_augmentation_pipeline() -> A.Compose:
-    """
-    Builds the Albumentations transform pipeline.
-    BboxParams ensures bounding boxes are transformed in sync with the image
-    and automatically discards boxes that become too small after cropping.
-    """
+
     return A.Compose(
         [
-            # ── Geometry (mild — preserve small boxes) 
             A.HorizontalFlip(p=0.5),
 
             A.ShiftScaleRotate(
@@ -62,19 +50,16 @@ def build_augmentation_pipeline() -> A.Compose:
                 p=0.5
             ),
 
-            # ── Noise (mimics X-ray sensor noise) 
             A.GaussNoise(
                 var_limit=(5.0, 20.0),
                 p=0.3
             ),
 
-            # ── Blur (mimics slight motion / focus variation) 
             A.OneOf([
                 A.GaussianBlur(blur_limit=(3, 5), p=1.0),
                 A.MedianBlur(blur_limit=3, p=1.0),
             ], p=0.2),
 
-            # ── Elastic distortion (subtle anatomical variation)
             A.ElasticTransform(
                 alpha=30,
                 sigma=5,
@@ -91,9 +76,7 @@ def build_augmentation_pipeline() -> A.Compose:
 
 
 def read_yolo_labels(label_path: Path) -> tuple[list[int], list[list[float]]]:
-    """
-    Returns (class_ids, bboxes) where bboxes are [cx, cy, w, h] normalised.
-    """
+
     class_ids, bboxes = [], []
     if not label_path.exists():
         return class_ids, bboxes
@@ -115,22 +98,15 @@ def write_yolo_labels(
     with open(label_path, "w") as f:
         for cls_id, bbox in zip(class_ids, bboxes):
             cx, cy, w, h = bbox
-            # Cast cls_id to int — Albumentations may return floats
             f.write(f"{int(float(cls_id))} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}\n")
 
 
 
 def get_dominant_class(class_ids: list[int]) -> str:
-    """
-    Returns the class name that appears most in a label file.
-    Used to decide which augmentation multiplier to apply to an image.
-    An image is augmented based on its rarest/most-valuable class.
-    """
+
     if not class_ids:
         return "Fillings"   # default — won't be augmented
 
-    # Prioritise minority classes: if an image has ANY Cavity or Impacted Tooth,
-    # treat it as that class for augmentation targeting
     priority_order = ["Cavity", "Impacted Tooth", "Implant", "Fillings"]
     present = {CLASS_NAMES[i] for i in class_ids if i < len(CLASS_NAMES)}
 
@@ -142,10 +118,7 @@ def get_dominant_class(class_ids: list[int]) -> str:
 
 
 def augment_training_set() -> None:
-    """
-    Main augmentation loop. For each training image whose dominant class
-    has AUGMENT_TARGETS > 0, generates N augmented copies with new filenames.
-    """
+
     transform  = build_augmentation_pipeline()
     random.seed(RANDOM_SEED)
     np.random.seed(RANDOM_SEED)
@@ -156,7 +129,6 @@ def augment_training_set() -> None:
         list(TRAIN_IMG_DIR.glob("*.png"))
     )
 
-    # Track how many images we augment per class
     aug_counts = defaultdict(int)
     new_image_count = 0
 
@@ -176,13 +148,11 @@ def augment_training_set() -> None:
         if n_copies == 0:
             continue   # Fillings — skip
 
-        # Read image (keep as-is — X-rays may already be grayscale or RGB)
         image = cv2.imread(str(img_path))
         if image is None:
             print(f"[augmentation] WARNING: could not read {img_path.name} — skipping")
             continue
 
-        # Convert BGR → RGB for Albumentations
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         for copy_idx in range(n_copies):
@@ -209,11 +179,9 @@ def augment_training_set() -> None:
             new_img_path = TRAIN_IMG_DIR / (new_stem + img_path.suffix)
             new_lbl_path = TRAIN_LBL_DIR / (new_stem + ".txt")
 
-            # Write augmented image (convert back to BGR for OpenCV)
             aug_bgr = cv2.cvtColor(aug_image, cv2.COLOR_RGB2BGR)
             cv2.imwrite(str(new_img_path), aug_bgr)
 
-            # Write augmented labels
             write_yolo_labels(new_lbl_path, list(aug_labels), list(aug_bboxes))
 
             new_image_count += 1
@@ -227,8 +195,6 @@ def augment_training_set() -> None:
     total_train = len(list(TRAIN_IMG_DIR.glob("*.*")))
     print(f"\n  Total train images now: {total_train}")
     print(f"  Output directory      : {TRAIN_IMG_DIR}")
-
-
 
 if __name__ == "__main__":
     print("[augmentation] Starting offline augmentation pipeline...")
